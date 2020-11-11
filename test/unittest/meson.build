@@ -1,7 +1,16 @@
-unittest_nntrainer_deps = [nntrainer_test_deps] # if unittest-wide dep is added, this is the place to add
+unittest_nntrainer_deps = [
+  nntrainer_test_deps,
+  nntrainer_capi_dep, # so that feature_state can be overridden
+] # if unittest-wide dep is added, this is the place to add
 
 # test material need to be unzipped from "(project_home)/packaging/"
-unzip_target = ['trainset.tar.gz', 'valset.tar.gz', 'testset.tar.gz', 'unittest_layers.tar.gz']
+unzip_target = [
+  'trainset.tar.gz',
+  'valset.tar.gz',
+  'testset.tar.gz',
+  'unittest_layers.tar.gz',
+  'unittest_models.tar.gz'
+]
 
 src_path = join_paths(meson.source_root(), 'packaging')
 dest_path = meson.build_root()
@@ -21,7 +30,9 @@ test_target = [
   'unittest_nntrainer_tensor',
   'unittest_util_func',
   'unittest_databuffer_file',
-  'unittest_nntrainer_modelfile'
+  'unittest_nntrainer_modelfile',
+  'unittest_nntrainer_models',
+  'unittest_nntrainer_graph'
 ]
 
 foreach target: test_target

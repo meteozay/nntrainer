@@ -9,6 +9,7 @@ project('nntrainer', 'c', 'cpp',
     'cpp_std=c++14'
   ]
 )
+add_project_arguments('-DMIN_CPP_VERSION=201402', language:['c','cpp'])
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
@@ -35,7 +36,9 @@ warning_flags = [
   '-Wno-multichar',
   '-Wvla',
   '-Wpointer-arith',
-  '-Wno-error=varargs'
+  '-Wno-error=varargs',
+  '-O2',
+  '-ftree-vectorize'
 ]
 
 warning_c_flags = [
@@ -71,7 +74,6 @@ nntrainer_bindir = join_paths(nntrainer_prefix, get_option('bindir'))
 nntrainer_includedir = join_paths(nntrainer_prefix, get_option('includedir'))
 nntrainer_inidir = get_option('sysconfdir')
 application_install_dir = join_paths(nntrainer_bindir, 'applications')
-
 
 # Set default configuration
 nntrainer_conf = configuration_data()
@@ -125,6 +127,16 @@ if not iniparser_dep.found()
   endif
 endif
 
+nnstreamer_capi_dep = dependency('capi-nnstreamer', required:false)
+if get_option('enable-nnstreamer-backbone')
+  add_project_arguments('-DENABLE_NNSTREAMER_BACKBONE=1', language:['c','cpp'])
+endif
+
+tflite_dep = dependency('tensorflow-lite', required: false)
+if get_option('enable-tflite-backbone')
+  add_project_arguments('-DENABLE_TFLITE_BACKBONE=1', language:['c','cpp'])
+endif
+
 jsoncpp_dep = dependency('jsoncpp') # jsoncpp
 libcurl_dep = dependency('libcurl')
 gtest_dep = dependency('gtest', required: false)
@@ -142,7 +154,9 @@ subdir('nntrainer')
 subdir('api')
 
 if get_option('enable-app')
-  tflite_dep = dependency('tensorflow-lite', required: true)
+  if not tflite_dep.found()
+    error('Tensorflow-Lite dependency not found')
+  endif
   subdir('Applications')
 endif
 

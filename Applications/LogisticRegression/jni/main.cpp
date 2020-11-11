@@ -31,10 +31,10 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "databuffer.h"
-#include "databuffer_func.h"
-#include "neuralnet.h"
-#include "tensor.h"
+#include <databuffer.h>
+#include <databuffer_func.h>
+#include <neuralnet.h>
+#include <tensor.h>
 
 std::string data_file;
 
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
 
   std::shared_ptr<nntrainer::DataBufferFromCallback> DB =
     std::make_shared<nntrainer::DataBufferFromCallback>();
-  DB->setFunc(nntrainer::BUF_TRAIN, getBatch_train);
+  DB->setGeneratorFunc(nntrainer::BufferType::BUF_TRAIN, getBatch_train);
 
   /**
    * @brief     Create NN
@@ -215,9 +215,10 @@ int main(int argc, char *argv[]) {
       getData(dataFile, o, l, j);
 
       try {
-        float answer = NN.forwarding(MAKE_SHARED_TENSOR(nntrainer::Tensor({o})))
-                         ->apply(stepFunction)
-                         .getValue(0, 0, 0, 0);
+        float answer =
+          NN.forwarding({MAKE_SHARED_TENSOR(nntrainer::Tensor({o}))})[0]
+            ->apply(stepFunction)
+            .getValue(0, 0, 0, 0);
         std::cout << answer << " : " << l[0] << std::endl;
         cn += answer == l[0];
       } catch (...) {

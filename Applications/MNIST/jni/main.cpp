@@ -37,11 +37,9 @@
 #include <gtest/gtest.h>
 #endif
 
-#include "databuffer.h"
-#include "databuffer_func.h"
-#include "neuralnet.h"
-#include "nntrainer_error.h"
-#include "tensor.h"
+#include <dataset.h>
+#include <ml-api-common.h>
+#include <model.h>
 
 #define TRAINING true
 
@@ -243,14 +241,14 @@ int getBatch_val(float **outVec, float **outLabel, bool *last,
 
 #if defined(APP_VALIDATE)
 TEST(MNIST_training, verify_accuracy) {
-  EXPECT_FLOAT_EQ(training_loss, 2.3255470);
-  EXPECT_FLOAT_EQ(validation_loss, 2.3074534);
-  EXPECT_FLOAT_EQ(last_batch_loss, 2.2916341);
+  EXPECT_FLOAT_EQ(training_loss, 2.3230426);
+  EXPECT_FLOAT_EQ(validation_loss, 2.3045228);
+  EXPECT_FLOAT_EQ(last_batch_loss, 2.2880380153656006);
 }
 #endif
 
 /**
- * @brief     create NN
+ * @brief     create model
  *            Get Feature from tflite & run foword & back propatation
  * @param[in]  arg 1 : configuration file path
  * @param[in]  arg 2 : resource path
@@ -273,33 +271,35 @@ int main(int argc, char *argv[]) {
   /**
    * @brief     Data buffer Create & Initialization
    */
-  std::shared_ptr<nntrainer::DataBufferFromCallback> DB =
-    std::make_shared<nntrainer::DataBufferFromCallback>();
-  DB->setFunc(nntrainer::BUF_TRAIN, getBatch_train);
-  DB->setFunc(nntrainer::BUF_VAL, getBatch_val);
+  std::shared_ptr<ml::train::Dataset> dataset =
+    createDataset(ml::train::DatasetType::GENERATOR);
+  dataset->setGeneratorFunc(ml::train::DatasetDataType::DATA_TRAIN,
+                            getBatch_train);
+  dataset->setGeneratorFunc(ml::train::DatasetDataType::DATA_VAL, getBatch_val);
 
   /**
    * @brief     Neural Network Create & Initialization
    */
-  nntrainer::NeuralNetwork NN;
+  std::unique_ptr<ml::train::Model> model =
+    createModel(ml::train::ModelType::NEURAL_NET);
   try {
-    NN.loadFromConfig(config);
+    model->loadFromConfig(config);
   } catch (...) {
     std::cerr << "Error during loadFromConfig" << std::endl;
     return 0;
   }
 
   try {
-    NN.init();
+    model->init();
   } catch (...) {
     std::cerr << "Error during init" << std::endl;
     return 0;
   }
 
-  NN.readModel();
-  NN.setDataBuffer((DB));
+  model->readModel();
+  model->setDataset(dataset);
 #if defined(APP_VALIDATE)
-  status = NN.setProperty({"epochs=5"});
+  status = model->setProperty({"epochs=5"});
   if (status != ML_ERROR_NONE) {
     std::cerr << "Error setting the number of epochs" << std::endl;
     return 0;
@@ -310,10 +310,10 @@ int main(int argc, char *argv[]) {
    * @brief     Neural Network Train & validation
    */
   try {
-    NN.train();
-    training_loss = NN.getTrainingLoss();
-    validation_loss = NN.getValidationLoss();
-    last_batch_loss = NN.getLoss();
+    model->train();
+    training_loss = model->getTrainingLoss();
+    validation_loss = model->getValidationLoss();
+    last_batch_loss = model->getLoss();
   } catch (...) {
     std::cerr << "Error during train" << std::endl;
     return 0;
@@ -335,7 +335,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   /**
-   * @brief     Finalize NN
+   * @brief     Finalize model
    */
   return status;
 }

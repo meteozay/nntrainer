@@ -25,12 +25,12 @@
 #ifndef __NNTRAINER_INTERNAL_H__
 #define __NNTRAINER_INTERNAL_H__
 
-#include <layer.h>
+#include <layer_internal.h>
 #include <mutex>
 #include <neuralnet.h>
 #include <nntrainer.h>
 #include <nntrainer_log.h>
-#include <optimizer.h>
+#include <optimizer_internal.h>
 #include <string>
 #include <unordered_map>
 
@@ -336,5 +336,12 @@ void ml_tizen_set_feature_state(feature_state_t state);
  */
 nntrainer::OptType
 ml_optimizer_to_nntrainer_type(ml_train_optimizer_type_e type);
+
+/**
+ * @brief Convert nntrainer API layer type to neural network layer type
+ * @param[in] type Layer type API enum
+ * @return nntrainer::LayerType layer type
+ */
+nntrainer::LayerType ml_layer_to_nntrainer_type(ml_train_layer_type_e type);
 
 #endif

@@ -28,6 +28,7 @@ Even though NNTrainer can be used to train sub-models, it requires implementatio
 * [Gichan Jang](https://github.com/gichan-jang)
 * [Yongjoo Ahn](https://github.com/anyj0527)
 * [Jihoon Lee](https://github.com/zhoonit)
+* [Hyeonseok Lee](https://github.com/lhs8928)
 
 ## Components
 
@@ -154,27 +155,6 @@ The following dependencies are needed to compile / build / run.
 *   libcurl3 (>= 7.47) (openAI Environment on PC)
 *   libiniparser
 *   libgtest (for testing)
-
-
-### Give It a Go Build with Docker
-
-You can use [docker image](https://hub.docker.com/r/lunapocket/nntrainer-build-env) to easily set up and try building.
-
-To run the docker
-
-```bash
-$ docker pull lunapocket/nntrainer-build-env:ubuntu-18.04
-$ docker run --rm -it  lunapocket/nntrainer-build-env:ubuntu-18.04
-```
-
-Inside docker...
-
-```bash
-$ cd /root/nntrainer
-$ git pull # If you want to build with latest sources.
-```
-
-You can try build from now on without concerning about Prerequisites.
 
 ### How to Build
 
@@ -378,3 +358,9 @@ $ LD_LIBRARY_PATH=./build/nntrainer ./build/Applications/Training/jni/nntrainer_
 ## Open Source License
 
 The nntrainer is an open source project released under the terms of the Apache License version 2.0.
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing](https://github.com/nnstreamer/nntrainer/blob/main/docs/contributing.md) Guide for more details.
+
+[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/0)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/0)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/1)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/1)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/2)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/2)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/3)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/3)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/4)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/4)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/5)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/5)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/6)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/6)[![](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/images/7)](https://sourcerer.io/fame/dongju-chae/nnstreamer/nntrainer/links/7)

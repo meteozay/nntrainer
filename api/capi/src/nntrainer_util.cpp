@@ -19,10 +19,24 @@ nntrainer::OptType
 ml_optimizer_to_nntrainer_type(ml_train_optimizer_type_e type) {
   switch (type) {
   case ML_TRAIN_OPTIMIZER_TYPE_ADAM:
-    return nntrainer::OptType::adam;
+    return nntrainer::OptType::ADAM;
   case ML_TRAIN_OPTIMIZER_TYPE_SGD:
-    return nntrainer::OptType::sgd;
+    return nntrainer::OptType::SGD;
   default:
-    return nntrainer::OptType::unknown;
+    return nntrainer::OptType::UNKNOWN;
+  }
+}
+
+/**
+ * @brief Convert nntrainer API layer type to neural network layer type
+ */
+nntrainer::LayerType ml_layer_to_nntrainer_type(ml_train_layer_type_e type) {
+  switch (type) {
+  case ML_TRAIN_LAYER_TYPE_FC:
+    return nntrainer::LayerType::LAYER_FC;
+  case ML_TRAIN_LAYER_TYPE_INPUT:
+    return nntrainer::LayerType::LAYER_IN;
+  default:
+    return nntrainer::LayerType::LAYER_UNKNOWN;
   }
 }

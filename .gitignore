@@ -4,8 +4,13 @@
 # ignore build directory
 /build
 
-# ignore iniparser downloaded by jni
+# jni build files
 /jni/iniparser
+libs/
+obj/
+
+# tflite for applications
+tensorflow-1.13.1
 
 # CTag
 /tags
@@ -23,6 +28,7 @@
 # binary files
 *.out
 *.in
+*.info
 *.so
 *.o
 *.a

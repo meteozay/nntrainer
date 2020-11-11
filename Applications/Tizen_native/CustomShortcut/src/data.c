@@ -165,13 +165,13 @@ int util_get_emoji(LABEL label, char **emoji_str) {
   /// setting draw label and text
   switch (label) {
   case LABEL_UNSET:
-    strcpy(*emoji_str, "❓");
+    strcpy(*emoji_str, EMOJI_UNKNOWN);
     return APP_ERROR_NONE;
   case LABEL_SMILE:
-    strcpy(*emoji_str, "😊");
+    strcpy(*emoji_str, EMOJI_SMILE);
     return APP_ERROR_NONE;
   case LABEL_FROWN:
-    strcpy(*emoji_str, "😢");
+    strcpy(*emoji_str, EMOJI_SAD);
     return APP_ERROR_NONE;
   default:
     LOG_E("unreachable code");
@@ -465,37 +465,25 @@ CLEAN_UP:
   return NULL;
 }
 
-void *data_update_train_result(void *data) {
-  appdata_s *ad = (appdata_s *)data;
+int data_update_train_progress(appdata_s *ad, const char *buf) {
+  train_result_s result;
 
-  // run model in another thread
-  int read_fd = ad->pipe_fd[0];
-  FILE *fp;
-  char buf[255];
-
-  fp = fdopen(read_fd, "r");
-
-  LOG_D("start waiting to get result");
-
-  ecore_pipe_thaw(ad->data_output_pipe);
-
-  while (fgets(buf, 255, fp) != NULL) {
-    if (ecore_pipe_write(ad->data_output_pipe, buf, 255) == false) {
-      LOG_E("pipe write error");
-      return NULL;
-    };
+  if (util_parse_result_string(buf, &result) != 0) {
+    LOG_W("parse failed. current buffer is being ignored");
+    return APP_ERROR_INVALID_PARAMETER;
   }
 
-  LOG_D("training finished");
-  fclose(fp);
-  close(read_fd);
-  sleep(1);
-  ecore_pipe_freeze(ad->data_output_pipe);
+  if (result.accuracy > ad->best_accuracy) {
+    ad->best_accuracy = result.accuracy;
+  }
 
-  return NULL;
+  ad->current_epoch = result.epoch;
+  ad->train_loss = result.train_loss;
+
+  return APP_ERROR_NONE;
 }
 
-int data_parse_result_string(const char *src, train_result_s *train_result) {
+int util_parse_result_string(const char *src, train_result_s *train_result) {
   // clang-format off
   // #10/10 - Training Loss: 0.398767 >> [ Accuracy: 75% - Validation Loss : 0.467543 ]
   // clang-format on
@@ -611,6 +599,8 @@ static void on_inference_end_(ml_tensors_data_h data,
   /// SMILE: 0 1
   /// FROWN: 1 0
   LOG_D("\033[33mlabel: %lf %lf\033[0m", raw_data[0], raw_data[1]);
+
+  ad->probability = raw_data[0] < raw_data[1] ? raw_data[1] : raw_data[0];
   ad->label = raw_data[0] < raw_data[1] ? LABEL_SMILE : LABEL_FROWN;
 
 RESUME:
@@ -647,7 +637,7 @@ int run_inference_pipeline_(appdata_s *ad, const char *filesrc) {
           "tensor_transform mode=arithmetic option=%s ! "
           "tensor_filter framework=tensorflow-lite model=%s ! "
           "tensor_filter framework=nntrainer model=%s input=1280:7:7:1 "
-          "inputtype=float32 output=1:%d:1:1 outputtype=float32 ! "
+          "inputtype=float32 output=%d outputtype=float32 ! "
           "tensor_sink name=sink",
           filesrc, "typecast:float32,add:-127.5,div:127.5", tf_model_path,
           trainer_model_path, NUM_CLASS);

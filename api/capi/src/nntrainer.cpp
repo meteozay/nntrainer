@@ -21,14 +21,14 @@
  * @author Parichay Kapoor <pk.kapoor@samsung.com>
  * @bug No known bugs except for NYI items
  */
-#include <databuffer.h>
-#include <databuffer_file.h>
-#include <databuffer_func.h>
+#include <databuffer_factory.h>
+#include <layer_factory.h>
+#include <layer_internal.h>
 #include <neuralnet.h>
 #include <nntrainer_error.h>
 #include <nntrainer_internal.h>
 #include <nntrainer_log.h>
-#include <parse_util.h>
+#include <optimizer_factory.h>
 #include <sstream>
 #include <stdarg.h>
 #include <string.h>
@@ -122,6 +122,43 @@ static int exception_bounded_make_shared(Tp &target, Types... args) {
   return nntrainer_exception_boundary(f);
 }
 
+/**
+ * @brief Create dataset with different types of train/test/valid data source
+ * @param[in] dataset dataset object to be created
+ * @param[in] type type of the dataset
+ * @param[in] train training data source
+ * @param[in] valid validation data source
+ * @param[in] test testing data source
+ */
+template <typename T>
+static int ml_train_dataset_create(ml_train_dataset_h *dataset,
+                                   nntrainer::DataBufferType type, T train,
+                                   T valid, T test) {
+  int status = ML_ERROR_NONE;
+
+  check_feature_state();
+
+  ml_train_dataset *nndataset = new ml_train_dataset;
+  nndataset->magic = ML_NNTRAINER_MAGIC;
+  nndataset->in_use = false;
+
+  returnable f = [&]() {
+    nndataset->data_buffer =
+      nntrainer::createDataBuffer(type, train, valid, test);
+    return ML_ERROR_NONE;
+  };
+
+  status = nntrainer_exception_boundary(f);
+  if (status != ML_ERROR_NONE) {
+    delete nndataset;
+    ml_loge("Error: Create dataset failed");
+  } else {
+    *dataset = nndataset;
+  }
+
+  return status;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -173,13 +210,6 @@ int ml_train_model_construct_with_conf(const char *model_conf,
   status = ml_train_model_construct(model);
   if (status != ML_ERROR_NONE)
     return status;
-
-  std::ifstream conf_file(model_conf);
-  if (!conf_file.good()) {
-    ml_train_model_destroy(*model);
-    ml_loge("Error: Cannot open model configuration file : %s", model_conf);
-    return ML_ERROR_INVALID_PARAMETER;
-  }
 
   nnmodel = (ml_train_model *)(*model);
   NN = nnmodel->network;
@@ -512,38 +542,27 @@ int ml_train_model_get_layer(ml_train_model_h model, const char *layer_name,
 
 int ml_train_layer_create(ml_train_layer_h *layer, ml_train_layer_type_e type) {
   int status = ML_ERROR_NONE;
-  returnable f;
   ml_train_layer *nnlayer;
 
   check_feature_state();
 
   nnlayer = new ml_train_layer;
   nnlayer->magic = ML_NNTRAINER_MAGIC;
+  nnlayer->in_use = false;
 
-  switch (type) {
-  case ML_TRAIN_LAYER_TYPE_INPUT:
-    status =
-      exception_bounded_make_shared<nntrainer::InputLayer>(nnlayer->layer);
-    break;
-  case ML_TRAIN_LAYER_TYPE_FC:
-    status = exception_bounded_make_shared<nntrainer::FullyConnectedLayer>(
-      nnlayer->layer);
-    break;
-  default:
-    delete nnlayer;
-    ml_loge("Error: Unknown layer type");
-    status = ML_ERROR_INVALID_PARAMETER;
-    return status;
-  }
+  returnable f = [&]() {
+    nnlayer->layer = nntrainer::createLayer(ml_layer_to_nntrainer_type(type));
+    return ML_ERROR_NONE;
+  };
 
+  status = nntrainer_exception_boundary(f);
   if (status != ML_ERROR_NONE) {
     delete nnlayer;
     ml_loge("Error: Create layer failed");
-    return status;
+  } else {
+    *layer = nnlayer;
   }
 
-  nnlayer->in_use = false;
-  *layer = nnlayer;
   return status;
 }
 
@@ -610,26 +629,20 @@ int ml_train_optimizer_create(ml_train_optimizer_h *optimizer,
 
   ml_train_optimizer *nnopt = new ml_train_optimizer;
   nnopt->magic = ML_NNTRAINER_MAGIC;
+  nnopt->in_use = false;
 
-  status =
-    exception_bounded_make_shared<nntrainer::Optimizer>(nnopt->optimizer);
+  returnable f = [&]() {
+    nnopt->optimizer =
+      nntrainer::createOptimizer(ml_optimizer_to_nntrainer_type(type));
+    return ML_ERROR_NONE;
+  };
+
+  status = nntrainer_exception_boundary(f);
   if (status != ML_ERROR_NONE) {
     delete nnopt;
     ml_loge("creating optimizer failed");
-    return status;
-  }
-
-  nnopt->in_use = false;
-
-  *optimizer = nnopt;
-
-  returnable f = [&]() {
-    return nnopt->optimizer->setType(ml_optimizer_to_nntrainer_type(type));
-  };
-  status = nntrainer_exception_boundary(f);
-
-  if (status != ML_ERROR_NONE) {
-    delete nnopt;
+  } else {
+    *optimizer = nnopt;
   }
 
   return status;
@@ -694,102 +707,16 @@ int ml_train_dataset_create_with_generator(ml_train_dataset_h *dataset,
                                            ml_train_datagen_cb train_cb,
                                            ml_train_datagen_cb valid_cb,
                                            ml_train_datagen_cb test_cb) {
-  int status = ML_ERROR_NONE;
-
-  check_feature_state();
-
-  if (!train_cb)
-    return ML_ERROR_INVALID_PARAMETER;
-
-  std::shared_ptr<nntrainer::DataBufferFromCallback> data_buffer;
-
-  status = exception_bounded_make_shared<nntrainer::DataBufferFromCallback>(
-    data_buffer);
-  if (status != ML_ERROR_NONE) {
-    ml_loge("Error: Create dataset failed");
-    return status;
-  }
-
-  returnable f = [&]() {
-    return data_buffer->setFunc(nntrainer::BUF_TRAIN, train_cb);
-  };
-
-  status = nntrainer_exception_boundary(f);
-  if (status != ML_ERROR_NONE) {
-    return status;
-  }
-
-  f = [&]() { return data_buffer->setFunc(nntrainer::BUF_VAL, valid_cb); };
-
-  status = nntrainer_exception_boundary(f);
-  if (status != ML_ERROR_NONE) {
-    return status;
-  }
-
-  f = [&]() { return data_buffer->setFunc(nntrainer::BUF_TEST, test_cb); };
-
-  status = nntrainer_exception_boundary(f);
-  if (status != ML_ERROR_NONE) {
-    return status;
-  }
-
-  ml_train_dataset *nndataset = new ml_train_dataset;
-  nndataset->magic = ML_NNTRAINER_MAGIC;
-  nndataset->data_buffer = data_buffer;
-  nndataset->in_use = false;
-
-  *dataset = nndataset;
-  return status;
+  return ml_train_dataset_create(dataset, nntrainer::DataBufferType::GENERATOR,
+                                 train_cb, valid_cb, test_cb);
 }
 
 int ml_train_dataset_create_with_file(ml_train_dataset_h *dataset,
                                       const char *train_file,
                                       const char *valid_file,
                                       const char *test_file) {
-  int status = ML_ERROR_NONE;
-
-  check_feature_state();
-
-  std::shared_ptr<nntrainer::DataBufferFromDataFile> data_buffer;
-
-  status = exception_bounded_make_shared<nntrainer::DataBufferFromDataFile>(
-    data_buffer);
-  if (status != ML_ERROR_NONE) {
-    ml_loge("Error: Create dataset failed");
-    return status;
-  }
-
-  if (train_file) {
-    status = data_buffer->setDataFile(train_file, nntrainer::DATA_TRAIN);
-    if (status != ML_ERROR_NONE) {
-      return status;
-    }
-  } else {
-    ml_loge("Train data file must be valid.");
-    return ML_ERROR_INVALID_PARAMETER;
-  }
-
-  if (valid_file) {
-    status = data_buffer->setDataFile(valid_file, nntrainer::DATA_VAL);
-    if (status != ML_ERROR_NONE) {
-      return status;
-    }
-  }
-
-  if (test_file) {
-    status = data_buffer->setDataFile(test_file, nntrainer::DATA_TEST);
-    if (status != ML_ERROR_NONE) {
-      return status;
-    }
-  }
-
-  ml_train_dataset *nndataset = new ml_train_dataset;
-  nndataset->magic = ML_NNTRAINER_MAGIC;
-  nndataset->data_buffer = data_buffer;
-  nndataset->in_use = false;
-
-  *dataset = nndataset;
-  return status;
+  return ml_train_dataset_create(dataset, nntrainer::DataBufferType::FILE,
+                                 train_file, valid_file, test_file);
 }
 
 int ml_train_dataset_set_property(ml_train_dataset_h dataset, ...) {
